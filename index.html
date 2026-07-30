@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HR Request & Admin</title>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <!-- Font & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f7fc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 2rem 1rem;
+    }
+
+    .app-container {
+      max-width: 880px;
+      width: 100%;
+    }
+
+    /* Toggle navigation */
+    .nav-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.8rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-toggle button {
+      padding: 0.6rem 2rem;
+      border-radius: 40px;
+      border: 1.5px solid #d0ddee;
+      background: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1f3a57;
+      cursor: pointer;
+      transition: 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .nav-toggle button.active {
+      background: #1a5fb0;
+      border-color: #1a5fb0;
+      color: white;
+      box-shadow: 0 8px 18px -6px rgba(26, 95, 176, 0.3);
+    }
+
+    .nav-toggle button i {
+      font-size: 0.9rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 32px;
+      box-shadow: 0 20px 40px -12px rgba(0, 20, 40, 0.2);
+      padding: 2rem 2rem 2.5rem;
+      transition: all 0.2s ease;
+    }
+
+    /* ===== FORM ===== */
+    .form-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .form-header h2 {
+      font-weight: 600;
+      font-size: 1.5rem;
+      color: #0b1e33;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-header h2 i {
+      color: #2a7de1;
+    }
+
+    .step-indicator {
+      background: #eef3f9;
+      padding: 0.4rem 1.2rem;
+      border-radius: 40px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #1f4e8c;
+    }
+
+    .section {
+      display: none;
+      animation: fade 0.25s ease;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    @keyframes fade {
+      0% { opacity: 0.6; transform: translateY(4px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #0b2b4a;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-sub {
+      color: #4f6f8f;
+      font-size: 0.95rem;
+      margin-bottom: 1.8rem;
+      border-left: 4px solid #2a7de1;
+      padding-left: 1rem;
+      background: #f8faff;
+      border-radius: 0 8px 8px 0;
+      line-height: 1.5;
+    }
+
+    .field-group {
+      margin-bottom: 1.7rem;
+    }
+
+    .field-label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #1c3d5e;
+      margin-bottom: 0.4rem;
+    }
+
+    .field-label .required-star {
+      color: #d14545;
+      margin-left: 2px;
+    }
+
+    .field-note {
+      font-size: 0.8rem;
+      color: #5f7d9c;
+      margin-top: 0.25rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border: 1.5px solid #d9e2ec;
+      border-radius: 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      background: white;
+      transition: 0.15s;
+      color: #0b1e33;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #2a7de1;
+      box-shadow: 0 0 0 4px rgba(42, 125, 225, 0.12);
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .radio-group, .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.2rem 2rem;
+      background: #f9fcff;
+      padding: 0.8rem 1.2rem;
+      border-radius: 18px;
+      border: 1px solid #e6edf6;
+    }
+
+    .radio-group label, .checkbox-group label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+      color: #1f3a57;
+      cursor: pointer;
+    }
+
+    .radio-group input[type="radio"], 
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      accent-color: #1f6dc6;
+      transform: scale(1.1);
+    }
+
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .jumlah-options {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.8rem 1.8rem;
+      background: #f9fcff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 40px;
+      border: 1px solid #e6edf6;
+    }
+
+    .jumlah-options label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 500;
+      color: #1f3a57;
+    }
+
+    .jumlah-options input[type="radio"] {
+      width: auto;
+      accent-color: #1f6dc6;
+      transform: scale(1.1);
+    }
+
+    .shift-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.7rem 1.5rem;
+      background: #f9fcff;
+      padding: 1rem 1.4rem;
+      border-radius: 20px;
+      border: 1px solid #e6edf6;
+    }
+
+    .shift-grid label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+      color: #1f3a57;
+      font-size: 0.9rem;
+    }
+
+    .shift-grid input[type="radio"] {
+      width: auto;
+      accent-color: #1f6dc6;
+      transform: scale(1.05);
+    }
+
+    .date-input {
+      max-width: 280px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2.2rem;
+      gap: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1.8rem;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      border: none;
+      background: #eef3f9;
+      color: #1f3a57;
+      cursor: pointer;
+      transition: 0.15s;
+      text-decoration: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .btn-primary {
+      background: #1a5fb0;
+      color: white;
+      box-shadow: 0 8px 18px -6px rgba(26, 95, 176, 0.3);
+    }
+
+    .btn-primary:hover {
+      background: #124a8a;
+      transform: scale(0.98);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid #cbd9e8;
+    }
+
+    .btn-outline:hover {
+      background: #f0f5fd;
+      border-color: #9bb3d0;
+    }
+
+    .btn-success {
+      background: #1d8b4f;
+      color: white;
+      box-shadow: 0 8px 18px -6px rgba(29, 139, 79, 0.3);
+    }
+
+    .btn-success:hover {
+      background: #14723f;
+    }
+
+    .btn-danger {
+      background: #b13a3a;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #912e2e;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    #successMessage {
+      margin-top: 1.5rem;
+      background: #e1f7e7;
+      border-radius: 40px;
+      padding: 1rem 1.8rem;
+      font-weight: 600;
+      color: #0f6e3a;
+      border: 1px solid #b2dfc0;
+      text-align: center;
+      display: none;
+    }
+
+    /* ===== ADMIN ===== */
+    .admin-login, .admin-dashboard {
+      display: none;
+    }
+
+    .admin-login.active, .admin-dashboard.active {
+      display: block;
+    }
+
+    .login-box {
+      max-width: 380px;
+      margin: 0 auto;
+      padding: 1.5rem 0;
+    }
+
+    .login-box input {
+      margin-bottom: 1rem;
+    }
+
+    .login-box .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.8rem;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+    }
+
+    .admin-header h3 {
+      font-size: 1.3rem;
+      color: #0b2b4a;
+    }
+
+    .request-item {
+      background: #f9fcff;
+      border-radius: 18px;
+      padding: 1rem 1.4rem;
+      margin-bottom: 1rem;
+      border: 1px solid #e6edf6;
+      transition: 0.1s;
+    }
+
+    .request-item:hover {
+      background: #f2f8ff;
+      border-color: #b6cee9;
+    }
+
+    .request-item .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.8rem;
+      font-size: 0.95rem;
+    }
+
+    .request-item .label {
+      font-weight: 600;
+      color: #1f3a57;
+      min-width: 100px;
+    }
+
+    .request-item .value {
+      color: #0b1e33;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #5f7d9c;
+    }
+
+    .empty-state i {
+      font-size: 2.8rem;
+      opacity: 0.4;
+      margin-bottom: 0.8rem;
+    }
+
+    .badge {
+      background: #d9e2ec;
+      padding: 0.2rem 0.8rem;
+      border-radius: 40px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #1f3a57;
+    }
+
+    @media (max-width: 680px) {
+      .card { padding: 1.5rem; }
+      .two-cols { grid-template-columns: 1fr; }
+      .shift-grid { grid-template-columns: 1fr; }
+      .nav-buttons { flex-wrap: wrap; }
+      .btn { width: 100%; justify-content: center; }
+      .nav-toggle button { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Navigation Toggle -->
+  <div class="nav-toggle">
+    <button class="active" id="btnForm" onclick="showForm()"><i class="fas fa-file-alt"></i> Form Permintaan</button>
+    <button id="btnAdmin" onclick="showAdmin()"><i class="fas fa-user-shield"></i> Admin</button>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- FORM CARD -->
+  <!-- ============================================================ -->
+  <div class="card" id="formCard">
+    <div class="form-header">
+      <h2><i class="fas fa-users-cog"></i> Permintaan TK</h2>
+      <span class="step-indicator"><i class="fas fa-list-ul"></i> <span id="stepDisplay">1 / 3</span></span>
+    </div>
+
+    <!-- Section 1 (dulu section 2) -->
+    <div class="section active" id="section1">
+      <div class="section-title"><i class="fas fa-user-circle" style="color:#1f6dc6;"></i> Pemohon Tenaga Kerja</div>
+      <div class="section-sub">Lengkapi identitas pemohon pada kolom berikut.</div>
+
+      <div class="field-group">
+        <label class="field-label">Nama <span class="required-star">*</span></label>
+        <input type="text" placeholder="Nama lengkap" id="namaPemohon">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Jabatan <span class="required-star">*</span></label>
+        <input type="text" placeholder="Jabatan saat ini" id="jabatanPemohon">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Perusahaan <span class="required-star">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="perusahaanPemohon" value="PT. Genetek Intratama" checked> PT. Genetek Intratama</label>
+          <label><input type="radio" name="perusahaanPemohon" value="PT. Effrensindo Kencana"> PT. Effrensindo Kencana</label>
+        </div>
+      </div>
+
+      <div class="nav-buttons">
+        <span></span>
+        <button class="btn btn-primary" onclick="nextSection(2)">Lanjut <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- Section 2 (dulu section 3) -->
+    <div class="section" id="section2">
+      <div class="section-title"><i class="fas fa-clipboard-list" style="color:#1f6dc6;"></i> Permintaan Tenaga Kerja</div>
+      <div class="section-sub">Detail kebutuhan tenaga kerja agar rekrutmen efektif.</div>
+
+      <div class="field-group">
+        <label class="field-label">Jenis Permintaan <span class="required-star">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="jenisPermintaan" value="Penggantian Tenaga Kerja" id="jenisGanti"> Penggantian</label>
+          <label><input type="radio" name="jenisPermintaan" value="Penambahan Tenaga Kerja" id="jenisTambah" checked> Penambahan</label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Nama karyawan digantikan <span style="font-weight:400;color:#4f6f8f;">(jika penggantian)</span></label>
+        <input type="text" placeholder="Isi nama, atau (-) jika tidak" id="namaDigantikan">
+        <div class="field-note"><i class="far fa-circle"></i> Jika penggantian, isi nama. Jika tidak, tulis <code>(-)</code></div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Perusahaan untuk Tenaga Kerja Baru <span class="required-star">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="perusahaanBaru" value="PT. Genetek Intratama" checked> PT. Genetek Intratama</label>
+          <label><input type="radio" name="perusahaanBaru" value="PT. Effrensindo Kencana"> PT. Effrensindo Kencana</label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Nama Project / Nomor SO</label>
+        <input type="text" placeholder="Contoh: Taman Anggrek / SO-X9192" id="projectSo">
+        <div class="field-note">Jika project, isi nama project atau nomor SO.</div>
+      </div>
+
+      <div class="nav-buttons">
+        <button class="btn btn-outline" onclick="prevSection(1)"><i class="fas fa-arrow-left"></i> Kembali</button>
+        <button class="btn btn-primary" onclick="nextSection(3)">Lanjut <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- Section 3 (dulu section 4) -->
+    <div class="section" id="section3">
+      <div class="section-title"><i class="fas fa-briefcase" style="color:#1f6dc6;"></i> Kebutuhan Tenaga Kerja</div>
+      <div class="section-sub">Lengkap detail kebutuhan tenaga kerja yang diajukan.</div>
+
+      <div class="field-group">
+        <label class="field-label">Posisi <span class="required-star">*</span></label>
+        <input type="text" placeholder="Nama posisi / jabatan" id="posisi">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Status Kepegawaian <span class="required-star">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="statusKepeg" value="Karyawan Tetap" checked> Karyawan Tetap</label>
+          <label><input type="radio" name="statusKepeg" value="Karyawan Kontrak"> Karyawan Kontrak</label>
+          <label><input type="radio" name="statusKepeg" value="Magang"> Magang</label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Deskripsi Pekerjaan <span class="required-star">*</span></label>
+        <textarea placeholder="Uraian tugas dan tanggung jawab..." id="deskripsiPekerjaan"></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Kualifikasi / Persyaratan <span class="required-star">*</span></label>
+        <textarea placeholder="Pendidikan, pengalaman, skill, dll." id="kualifikasi"></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Jumlah Kebutuhan <span class="required-star">*</span></label>
+        <div class="jumlah-options">
+          <label><input type="radio" name="jumlahKebutuhan" value="1" checked> 1</label>
+          <label><input type="radio" name="jumlahKebutuhan" value="2"> 2</label>
+          <label><input type="radio" name="jumlahKebutuhan" value="3"> 3</label>
+          <label><input type="radio" name="jumlahKebutuhan" value="4"> 4</label>
+          <label style="display:flex;align-items:center;gap:0.3rem;">
+            <input type="radio" name="jumlahKebutuhan" value="other" id="jumlahOtherRadio">
+            <span>Lainnya:</span>
+            <input type="text" placeholder="jumlah" id="jumlahOtherInput" style="width:70px;padding:0.4rem 0.6rem;border-radius:30px;">
+          </label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Tanggal Mulai Bekerja <span class="required-star">*</span></label>
+        <input type="date" class="date-input" id="tanggalMulai">
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Shift Kerja <span class="required-star">*</span></label>
+        <div class="shift-grid">
+          <label><input type="radio" name="shiftKerja" value="Office/Shift C (Senin-Jumat, 08:00-17:00) -- (Sabtu-Minggu, Day Off)" checked> Shift C (Sen-Jum 08:00-17:00)</label>
+          <label><input type="radio" name="shiftKerja" value="Shift A (Senin-Jumat, 07:00-16:00) -- (Sabtu-Minggu, Day Off)"> Shift A (07:00-16:00)</label>
+          <label><input type="radio" name="shiftKerja" value="Shift B (Senin-Jumat, 08:00-16:00) -- (Sabtu-Minggu, Day Off)"> Shift B (08:00-16:00)</label>
+          <label><input type="radio" name="shiftKerja" value="Shift D (Senin-Jumat, 08:30-17:00) -- (Sabtu-Minggu, Day Off)"> Shift D (08:30-17:00)</label>
+          <label style="grid-column: span 2;"><input type="radio" name="shiftKerja" value="Shift D Sabtu: (Senin-Jumat, 08:30-17:00, Sabtu 08:30-13:30, Minggu Day Off)"> Shift D Sabtu (Sen-Jum 08:30-17:00, Sab 08:30-13:30)</label>
+        </div>
+      </div>
+
+      <div class="nav-buttons">
+        <button class="btn btn-outline" onclick="prevSection(2)"><i class="fas fa-arrow-left"></i> Kembali</button>
+        <button class="btn btn-success" onclick="submitForm()"><i class="fas fa-check-circle"></i> Kirim Permintaan</button>
+      </div>
+    </div>
+
+    <div id="successMessage">
+      <i class="fas fa-check-circle" style="margin-right: 10px;"></i> Permintaan berhasil dikirim ke database!
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ADMIN CARD -->
+  <!-- ============================================================ -->
+  <div class="card" id="adminCard" style="display:none;">
+    <!-- Login -->
+    <div class="admin-login active" id="adminLogin">
+      <div class="login-box">
+        <h3 style="text-align:center; margin-bottom:1.5rem;"><i class="fas fa-lock" style="color:#1f6dc6;"></i> Admin Login</h3>
+        <input type="password" id="adminPassword" placeholder="Masukkan password" style="margin-bottom:1rem;">
+        <button class="btn btn-primary" onclick="adminLogin()"><i class="fas fa-sign-in-alt"></i> Masuk</button>
+        <div id="loginError" style="color:#b13a3a; margin-top:0.8rem; font-size:0.9rem; text-align:center; display:none;">Password salah. Silakan coba lagi.</div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="admin-dashboard" id="adminDashboard">
+      <div class="admin-header">
+        <h3><i class="fas fa-database" style="color:#1f6dc6;"></i> Data Permintaan</h3>
+        <div>
+          <button class="btn btn-outline" onclick="refreshData()" style="margin-right:0.5rem;"><i class="fas fa-sync"></i></button>
+          <button class="btn btn-danger" onclick="adminLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+      </div>
+      <div id="requestList">
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>Belum ada data permintaan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // FIREBASE CONFIG & INIT
+  // ============================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyAtZe_Zo4EYD3QUe2aIveHnawRb3GXsVJM",
+    authDomain: "panduan-genetek.firebaseapp.com",
+    databaseURL: "https://panduan-genetek-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "panduan-genetek",
+    storageBucket: "panduan-genetek.firebasestorage.app",
+    messagingSenderId: "654454090409",
+    appId: "1:654454090409:web:d1c4bc92b9be50218c57b8"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // ============================================================
+  // FORM LOGIC
+  // ============================================================
+  const sections = {
+    1: document.getElementById('section1'),
+    2: document.getElementById('section2'),
+    3: document.getElementById('section3')
+  };
+  const stepDisplay = document.getElementById('stepDisplay');
+
+  function updateStepDisplay(num) {
+    stepDisplay.textContent = `${num} / 3`;
+  }
+
+  window.nextSection = function(num) {
+    Object.values(sections).forEach(s => s.classList.remove('active'));
+    if (sections[num]) {
+      sections[num].classList.add('active');
+      updateStepDisplay(num);
+    }
+    document.getElementById('successMessage').style.display = 'none';
+  };
+
+  window.prevSection = function(num) {
+    Object.values(sections).forEach(s => s.classList.remove('active'));
+    if (sections[num]) {
+      sections[num].classList.add('active');
+      updateStepDisplay(num);
+    }
+    document.getElementById('successMessage').style.display = 'none';
+  };
+
+  // "other" jumlah
+  const otherRadio = document.getElementById('jumlahOtherRadio');
+  const otherInput = document.getElementById('jumlahOtherInput');
+  if (otherRadio && otherInput) {
+    otherRadio.addEventListener('change', function() { if (this.checked) otherInput.focus(); });
+    otherInput.addEventListener('input', function() {
+      if (this.value.trim() !== '') otherRadio.checked = true;
+    });
+  }
+
+  // set default date
+  const dateInput = document.getElementById('tanggalMulai');
+  if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+  }
+
+  // Submit form ke Firebase
+  window.submitForm = function() {
+    // Validasi
+    const nama = document.getElementById('namaPemohon').value.trim();
+    const jabatan = document.getElementById('jabatanPemohon').value.trim();
+    const posisi = document.getElementById('posisi').value.trim();
+    const deskripsi = document.getElementById('deskripsiPekerjaan').value.trim();
+    const kualifikasi = document.getElementById('kualifikasi').value.trim();
+    const tanggalMulai = document.getElementById('tanggalMulai').value;
+
+    if (!nama || !jabatan || !posisi || !deskripsi || !kualifikasi || !tanggalMulai) {
+      alert('Harap lengkapi semua field yang wajib (tanda *).');
+      return;
+    }
+
+    const jenisGanti = document.getElementById('jenisGanti');
+    const namaDiganti = document.getElementById('namaDigantikan').value.trim();
+    if (jenisGanti.checked && !namaDiganti) {
+      alert('Jika memilih Penggantian, isi nama karyawan yang digantikan.');
+      return;
+    }
+
+    // Ambil nilai jumlah
+    let jumlah = document.querySelector('input[name="jumlahKebutuhan"]:checked');
+    let jumlahValue = jumlah ? jumlah.value : '1';
+    if (jumlahValue === 'other') {
+      jumlahValue = document.getElementById('jumlahOtherInput').value.trim() || '1';
+    }
+
+    // Ambil perusahaan pemohon
+    const perusahaanPemohon = document.querySelector('input[name="perusahaanPemohon"]:checked');
+    const perusahaanBaru = document.querySelector('input[name="perusahaanBaru"]:checked');
+
+    // Data object
+    const data = {
+      pemohon: {
+        nama: nama,
+        jabatan: jabatan,
+        perusahaan: perusahaanPemohon ? perusahaanPemohon.value : ''
+      },
+      permintaan: {
+        jenis: document.querySelector('input[name="jenisPermintaan"]:checked')?.value || '',
+        namaDigantikan: namaDiganti || '-',
+        perusahaanBaru: perusahaanBaru ? perusahaanBaru.value : '',
+        projectSo: document.getElementById('projectSo').value.trim() || '-'
+      },
+      kebutuhan: {
+        posisi: posisi,
+        statusKepegawaian: document.querySelector('input[name="statusKepeg"]:checked')?.value || '',
+        deskripsiPekerjaan: deskripsi,
+        kualifikasi: kualifikasi,
+        jumlah: jumlahValue,
+        tanggalMulai: tanggalMulai,
+        shift: document.querySelector('input[name="shiftKerja"]:checked')?.value || ''
+      },
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    // Push ke Firebase
+    const ref = db.ref('permintaan');
+    ref.push(data).then(() => {
+      document.getElementById('successMessage').style.display = 'block';
+      // reset form? optional
+    }).catch(err => {
+      alert('Gagal menyimpan: ' + err.message);
+    });
+  };
+
+  // ============================================================
+  // ADMIN LOGIC (login: password = "admin123")
+  // ============================================================
+  const ADMIN_PASSWORD = "admin123";
+
+  window.adminLogin = function() {
+    const input = document.getElementById('adminPassword').value;
+    const error = document.getElementById('loginError');
+    if (input === ADMIN_PASSWORD) {
+      error.style.display = 'none';
+      document.getElementById('adminLogin').classList.remove('active');
+      document.getElementById('adminDashboard').classList.add('active');
+      loadData();
+    } else {
+      error.style.display = 'block';
+    }
+  };
+
+  window.adminLogout = function() {
+    document.getElementById('adminDashboard').classList.remove('active');
+    document.getElementById('adminLogin').classList.add('active');
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('loginError').style.display = 'none';
+  };
+
+  window.refreshData = function() {
+    loadData();
+  };
+
+  function loadData() {
+    const container = document.getElementById('requestList');
+    const ref = db.ref('permintaan');
+    ref.orderByChild('timestamp').once('value').then(snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>Belum ada data permintaan.</p></div>`;
+        return;
+      }
+
+      let html = '';
+      const entries = Object.entries(data).reverse(); // newest first
+      for (const [key, val] of entries) {
+        const p = val.pemohon || {};
+        const req = val.permintaan || {};
+        const k = val.kebutuhan || {};
+        const date = val.timestamp ? new Date(val.timestamp).toLocaleString('id-ID') : '-';
+
+        html += `
+          <div class="request-item">
+            <div class="row"><span class="label">Pemohon</span><span class="value">${p.nama || '-'} (${p.jabatan || '-'})</span></div>
+            <div class="row"><span class="label">Perusahaan</span><span class="value">${p.perusahaan || '-'}</span></div>
+            <div class="row"><span class="label">Jenis</span><span class="value">${req.jenis || '-'} ${req.namaDigantikan && req.namaDigantikan !== '-' ? '→ ' + req.namaDigantikan : ''}</span></div>
+            <div class="row"><span class="label">Posisi</span><span class="value">${k.posisi || '-'} (${k.statusKepegawaian || '-'})</span></div>
+            <div class="row"><span class="label">Jumlah</span><span class="value">${k.jumlah || '-'} orang</span></div>
+            <div class="row"><span class="label">Mulai</span><span class="value">${k.tanggalMulai || '-'} · ${k.shift || '-'}</span></div>
+            <div class="row"><span class="label">Project/SO</span><span class="value">${req.projectSo || '-'}</span></div>
+            <div class="row" style="margin-top:0.3rem; font-size:0.8rem; color:#5f7d9c;"><span class="label">Dikirim</span><span class="value">${date}</span></div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }).catch(err => {
+      container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Gagal muat data: ${err.message}</p></div>`;
+    });
+  }
+
+  // ============================================================
+  // NAVIGATION TOGGLE (Form / Admin)
+  // ============================================================
+  const formCard = document.getElementById('formCard');
+  const adminCard = document.getElementById('adminCard');
+  const btnForm = document.getElementById('btnForm');
+  const btnAdmin = document.getElementById('btnAdmin');
+
+  window.showForm = function() {
+    formCard.style.display = 'block';
+    adminCard.style.display = 'none';
+    btnForm.classList.add('active');
+    btnAdmin.classList.remove('active');
+  };
+
+  window.showAdmin = function() {
+    formCard.style.display = 'none';
+    adminCard.style.display = 'block';
+    btnAdmin.classList.add('active');
+    btnForm.classList.remove('active');
+    // jika sudah login, load data
+    if (document.getElementById('adminDashboard').classList.contains('active')) {
+      loadData();
+    }
+  };
+
+  // Inisialisasi step display
+  updateStepDisplay(1);
+</script>
+
+</body>
+</html>
