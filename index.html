@@ -30,11 +30,10 @@
     }
 
     .app-container {
-      max-width: 880px;
+      max-width: 920px;
       width: 100%;
     }
 
-    /* Toggle navigation */
     .nav-toggle {
       display: flex;
       justify-content: center;
@@ -343,6 +342,20 @@
       background: #912e2e;
     }
 
+    .btn-warning {
+      background: #d48c2b;
+      color: white;
+    }
+
+    .btn-warning:hover {
+      background: #b87822;
+    }
+
+    .btn-sm {
+      padding: 0.3rem 1rem;
+      font-size: 0.8rem;
+    }
+
     .btn:disabled {
       opacity: 0.5;
       pointer-events: none;
@@ -429,6 +442,13 @@
       color: #0b1e33;
     }
 
+    .request-item .actions {
+      margin-top: 0.8rem;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
     .empty-state {
       text-align: center;
       padding: 3rem 1rem;
@@ -450,6 +470,52 @@
       color: #1f3a57;
     }
 
+    /* Modal Edit */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: white;
+      max-width: 700px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 32px;
+      padding: 2rem;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+    }
+
+    .modal-box h3 {
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-box .field-group {
+      margin-bottom: 1.2rem;
+    }
+
+    .modal-box .btn-group {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
     @media (max-width: 680px) {
       .card { padding: 1.5rem; }
       .two-cols { grid-template-columns: 1fr; }
@@ -457,6 +523,7 @@
       .nav-buttons { flex-wrap: wrap; }
       .btn { width: 100%; justify-content: center; }
       .nav-toggle button { width: 100%; justify-content: center; }
+      .modal-box { padding: 1.5rem; }
     }
   </style>
 </head>
@@ -478,7 +545,7 @@
       <span class="step-indicator"><i class="fas fa-list-ul"></i> <span id="stepDisplay">1 / 3</span></span>
     </div>
 
-    <!-- Section 1 (dulu section 2) -->
+    <!-- Section 1 -->
     <div class="section active" id="section1">
       <div class="section-title"><i class="fas fa-user-circle" style="color:#1f6dc6;"></i> Pemohon Tenaga Kerja</div>
       <div class="section-sub">Lengkapi identitas pemohon pada kolom berikut.</div>
@@ -507,7 +574,7 @@
       </div>
     </div>
 
-    <!-- Section 2 (dulu section 3) -->
+    <!-- Section 2 -->
     <div class="section" id="section2">
       <div class="section-title"><i class="fas fa-clipboard-list" style="color:#1f6dc6;"></i> Permintaan Tenaga Kerja</div>
       <div class="section-sub">Detail kebutuhan tenaga kerja agar rekrutmen efektif.</div>
@@ -546,7 +613,7 @@
       </div>
     </div>
 
-    <!-- Section 3 (dulu section 4) -->
+    <!-- Section 3 -->
     <div class="section" id="section3">
       <div class="section-title"><i class="fas fa-briefcase" style="color:#1f6dc6;"></i> Kebutuhan Tenaga Kerja</div>
       <div class="section-sub">Lengkap detail kebutuhan tenaga kerja yang diajukan.</div>
@@ -646,6 +713,22 @@
           <p>Belum ada data permintaan.</p>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL EDIT -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <h3><i class="fas fa-edit" style="color:#1f6dc6;"></i> Edit Permintaan</h3>
+    <div id="editFormContainer">
+      <!-- Form edit akan diisi oleh JS -->
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-success" onclick="saveEdit()"><i class="fas fa-save"></i> Simpan</button>
+      <button class="btn btn-outline" onclick="closeEditModal()">Batal</button>
     </div>
   </div>
 </div>
@@ -778,7 +861,8 @@
     const ref = db.ref('permintaan');
     ref.push(data).then(() => {
       document.getElementById('successMessage').style.display = 'block';
-      // reset form? optional
+      // Reset form (opsional)
+      // resetForm();
     }).catch(err => {
       alert('Gagal menyimpan: ' + err.message);
     });
@@ -788,6 +872,7 @@
   // ADMIN LOGIC (login: password = "admin123")
   // ============================================================
   const ADMIN_PASSWORD = "admin123";
+  let currentEditKey = null;
 
   window.adminLogin = function() {
     const input = document.getElementById('adminPassword').value;
@@ -807,10 +892,13 @@
     document.getElementById('adminLogin').classList.add('active');
     document.getElementById('adminPassword').value = '';
     document.getElementById('loginError').style.display = 'none';
+    document.getElementById('requestList').innerHTML = `<div class="empty-state"><i class="fas fa-inbox"></i><p>Belum ada data permintaan.</p></div>`;
   };
 
   window.refreshData = function() {
-    loadData();
+    if (document.getElementById('adminDashboard').classList.contains('active')) {
+      loadData();
+    }
   };
 
   function loadData() {
@@ -832,7 +920,7 @@
         const date = val.timestamp ? new Date(val.timestamp).toLocaleString('id-ID') : '-';
 
         html += `
-          <div class="request-item">
+          <div class="request-item" data-key="${key}">
             <div class="row"><span class="label">Pemohon</span><span class="value">${p.nama || '-'} (${p.jabatan || '-'})</span></div>
             <div class="row"><span class="label">Perusahaan</span><span class="value">${p.perusahaan || '-'}</span></div>
             <div class="row"><span class="label">Jenis</span><span class="value">${req.jenis || '-'} ${req.namaDigantikan && req.namaDigantikan !== '-' ? '→ ' + req.namaDigantikan : ''}</span></div>
@@ -841,6 +929,10 @@
             <div class="row"><span class="label">Mulai</span><span class="value">${k.tanggalMulai || '-'} · ${k.shift || '-'}</span></div>
             <div class="row"><span class="label">Project/SO</span><span class="value">${req.projectSo || '-'}</span></div>
             <div class="row" style="margin-top:0.3rem; font-size:0.8rem; color:#5f7d9c;"><span class="label">Dikirim</span><span class="value">${date}</span></div>
+            <div class="actions">
+              <button class="btn btn-warning btn-sm" onclick="openEditModal('${key}')"><i class="fas fa-edit"></i> Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteRequest('${key}')"><i class="fas fa-trash"></i> Hapus</button>
+            </div>
           </div>
         `;
       }
@@ -851,7 +943,173 @@
   }
 
   // ============================================================
-  // NAVIGATION TOGGLE (Form / Admin)
+  // EDIT & DELETE
+  // ============================================================
+  window.openEditModal = function(key) {
+    currentEditKey = key;
+    const ref = db.ref('permintaan/' + key);
+    ref.once('value').then(snapshot => {
+      const val = snapshot.val();
+      if (!val) {
+        alert('Data tidak ditemukan.');
+        return;
+      }
+
+      const p = val.pemohon || {};
+      const req = val.permintaan || {};
+      const k = val.kebutuhan || {};
+
+      const container = document.getElementById('editFormContainer');
+      container.innerHTML = `
+        <div class="field-group">
+          <label class="field-label">Nama Pemohon <span class="required-star">*</span></label>
+          <input type="text" id="editNama" value="${p.nama || ''}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Jabatan <span class="required-star">*</span></label>
+          <input type="text" id="editJabatan" value="${p.jabatan || ''}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Perusahaan Pemohon <span class="required-star">*</span></label>
+          <div class="radio-group" id="editPerusahaanPemohon">
+            <label><input type="radio" name="editPerusahaanPemohon" value="PT. Genetek Intratama" ${p.perusahaan === 'PT. Genetek Intratama' ? 'checked' : ''}> PT. Genetek Intratama</label>
+            <label><input type="radio" name="editPerusahaanPemohon" value="PT. Effrensindo Kencana" ${p.perusahaan === 'PT. Effrensindo Kencana' ? 'checked' : ''}> PT. Effrensindo Kencana</label>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Jenis Permintaan <span class="required-star">*</span></label>
+          <div class="radio-group" id="editJenisPermintaan">
+            <label><input type="radio" name="editJenisPermintaan" value="Penggantian Tenaga Kerja" ${req.jenis === 'Penggantian Tenaga Kerja' ? 'checked' : ''}> Penggantian</label>
+            <label><input type="radio" name="editJenisPermintaan" value="Penambahan Tenaga Kerja" ${req.jenis === 'Penambahan Tenaga Kerja' ? 'checked' : ''}> Penambahan</label>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Nama Digantikan</label>
+          <input type="text" id="editNamaDigantikan" value="${req.namaDigantikan || '-'}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Perusahaan Baru <span class="required-star">*</span></label>
+          <div class="radio-group" id="editPerusahaanBaru">
+            <label><input type="radio" name="editPerusahaanBaru" value="PT. Genetek Intratama" ${req.perusahaanBaru === 'PT. Genetek Intratama' ? 'checked' : ''}> PT. Genetek Intratama</label>
+            <label><input type="radio" name="editPerusahaanBaru" value="PT. Effrensindo Kencana" ${req.perusahaanBaru === 'PT. Effrensindo Kencana' ? 'checked' : ''}> PT. Effrensindo Kencana</label>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Project / SO</label>
+          <input type="text" id="editProjectSo" value="${req.projectSo || '-'}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Posisi <span class="required-star">*</span></label>
+          <input type="text" id="editPosisi" value="${k.posisi || ''}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Status Kepegawaian <span class="required-star">*</span></label>
+          <div class="radio-group" id="editStatusKepeg">
+            <label><input type="radio" name="editStatusKepeg" value="Karyawan Tetap" ${k.statusKepegawaian === 'Karyawan Tetap' ? 'checked' : ''}> Karyawan Tetap</label>
+            <label><input type="radio" name="editStatusKepeg" value="Karyawan Kontrak" ${k.statusKepegawaian === 'Karyawan Kontrak' ? 'checked' : ''}> Karyawan Kontrak</label>
+            <label><input type="radio" name="editStatusKepeg" value="Magang" ${k.statusKepegawaian === 'Magang' ? 'checked' : ''}> Magang</label>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Deskripsi Pekerjaan <span class="required-star">*</span></label>
+          <textarea id="editDeskripsi">${k.deskripsiPekerjaan || ''}</textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Kualifikasi <span class="required-star">*</span></label>
+          <textarea id="editKualifikasi">${k.kualifikasi || ''}</textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Jumlah <span class="required-star">*</span></label>
+          <input type="text" id="editJumlah" value="${k.jumlah || '1'}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Tanggal Mulai <span class="required-star">*</span></label>
+          <input type="date" id="editTanggalMulai" value="${k.tanggalMulai || ''}">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Shift <span class="required-star">*</span></label>
+          <div class="shift-grid" id="editShift">
+            <label><input type="radio" name="editShift" value="Office/Shift C (Senin-Jumat, 08:00-17:00) -- (Sabtu-Minggu, Day Off)" ${k.shift === 'Office/Shift C (Senin-Jumat, 08:00-17:00) -- (Sabtu-Minggu, Day Off)' ? 'checked' : ''}> Shift C</label>
+            <label><input type="radio" name="editShift" value="Shift A (Senin-Jumat, 07:00-16:00) -- (Sabtu-Minggu, Day Off)" ${k.shift === 'Shift A (Senin-Jumat, 07:00-16:00) -- (Sabtu-Minggu, Day Off)' ? 'checked' : ''}> Shift A</label>
+            <label><input type="radio" name="editShift" value="Shift B (Senin-Jumat, 08:00-16:00) -- (Sabtu-Minggu, Day Off)" ${k.shift === 'Shift B (Senin-Jumat, 08:00-16:00) -- (Sabtu-Minggu, Day Off)' ? 'checked' : ''}> Shift B</label>
+            <label><input type="radio" name="editShift" value="Shift D (Senin-Jumat, 08:30-17:00) -- (Sabtu-Minggu, Day Off)" ${k.shift === 'Shift D (Senin-Jumat, 08:30-17:00) -- (Sabtu-Minggu, Day Off)' ? 'checked' : ''}> Shift D</label>
+            <label style="grid-column: span 2;"><input type="radio" name="editShift" value="Shift D Sabtu: (Senin-Jumat, 08:30-17:00, Sabtu 08:30-13:30, Minggu Day Off)" ${k.shift === 'Shift D Sabtu: (Senin-Jumat, 08:30-17:00, Sabtu 08:30-13:30, Minggu Day Off)' ? 'checked' : ''}> Shift D Sabtu</label>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('editModal').classList.add('active');
+    }).catch(err => {
+      alert('Gagal load data: ' + err.message);
+    });
+  };
+
+  window.closeEditModal = function() {
+    document.getElementById('editModal').classList.remove('active');
+    currentEditKey = null;
+  };
+
+  window.saveEdit = function() {
+    if (!currentEditKey) {
+      alert('Tidak ada data yang diedit.');
+      return;
+    }
+
+    // Kumpulkan data dari form edit
+    const updatedData = {
+      pemohon: {
+        nama: document.getElementById('editNama').value.trim(),
+        jabatan: document.getElementById('editJabatan').value.trim(),
+        perusahaan: document.querySelector('input[name="editPerusahaanPemohon"]:checked')?.value || ''
+      },
+      permintaan: {
+        jenis: document.querySelector('input[name="editJenisPermintaan"]:checked')?.value || '',
+        namaDigantikan: document.getElementById('editNamaDigantikan').value.trim() || '-',
+        perusahaanBaru: document.querySelector('input[name="editPerusahaanBaru"]:checked')?.value || '',
+        projectSo: document.getElementById('editProjectSo').value.trim() || '-'
+      },
+      kebutuhan: {
+        posisi: document.getElementById('editPosisi').value.trim(),
+        statusKepegawaian: document.querySelector('input[name="editStatusKepeg"]:checked')?.value || '',
+        deskripsiPekerjaan: document.getElementById('editDeskripsi').value.trim(),
+        kualifikasi: document.getElementById('editKualifikasi').value.trim(),
+        jumlah: document.getElementById('editJumlah').value.trim() || '1',
+        tanggalMulai: document.getElementById('editTanggalMulai').value,
+        shift: document.querySelector('input[name="editShift"]:checked')?.value || ''
+      },
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    // Validasi sederhana
+    if (!updatedData.pemohon.nama || !updatedData.pemohon.jabatan || !updatedData.kebutuhan.posisi ||
+        !updatedData.kebutuhan.deskripsiPekerjaan || !updatedData.kebutuhan.kualifikasi || !updatedData.kebutuhan.tanggalMulai) {
+      alert('Harap lengkapi semua field yang wajib (tanda *).');
+      return;
+    }
+
+    const ref = db.ref('permintaan/' + currentEditKey);
+    ref.update(updatedData).then(() => {
+      closeEditModal();
+      loadData();
+      alert('Data berhasil diperbarui!');
+    }).catch(err => {
+      alert('Gagal update: ' + err.message);
+    });
+  };
+
+  window.deleteRequest = function(key) {
+    if (!confirm('Yakin ingin menghapus data ini?')) return;
+    const ref = db.ref('permintaan/' + key);
+    ref.remove().then(() => {
+      loadData();
+      alert('Data berhasil dihapus!');
+    }).catch(err => {
+      alert('Gagal hapus: ' + err.message);
+    });
+  };
+
+  // ============================================================
+  // NAVIGATION TOGGLE
   // ============================================================
   const formCard = document.getElementById('formCard');
   const adminCard = document.getElementById('adminCard');
@@ -870,7 +1128,6 @@
     adminCard.style.display = 'block';
     btnAdmin.classList.add('active');
     btnForm.classList.remove('active');
-    // jika sudah login, load data
     if (document.getElementById('adminDashboard').classList.contains('active')) {
       loadData();
     }
@@ -878,6 +1135,11 @@
 
   // Inisialisasi step display
   updateStepDisplay(1);
+
+  // Tutup modal jika klik di luar
+  document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+  });
 </script>
 
 </body>
