@@ -547,6 +547,18 @@
       flex-wrap: wrap;
     }
 
+    .public-badge {
+      background: #e8f4fd;
+      padding: 0.5rem 1rem;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      color: #1a5fb0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
     @media (max-width: 680px) {
       .card { padding: 1.5rem; }
       .two-cols { grid-template-columns: 1fr; }
@@ -574,6 +586,11 @@
     <div class="form-header">
       <h2><i class="fas fa-users-cog"></i> Permintaan TK</h2>
       <span class="step-indicator"><i class="fas fa-list-ul"></i> <span id="stepDisplay">1 / 3</span></span>
+    </div>
+
+    <!-- Public Access Badge -->
+    <div class="public-badge">
+      <i class="fas fa-globe"></i> Akses Publik - Semua dapat mengirim permintaan
     </div>
 
     <!-- Section 1 -->
@@ -723,6 +740,9 @@
     <div class="admin-login active" id="adminLogin">
       <div class="login-box">
         <h3 style="text-align:center; margin-bottom:1.5rem;"><i class="fas fa-lock" style="color:#1f6dc6;"></i> Admin Login</h3>
+        <p style="text-align:center; color:#4f6f8f; margin-bottom:1rem; font-size:0.9rem;">
+          <i class="fas fa-info-circle"></i> Login untuk mengelola data permintaan
+        </p>
         <input type="email" id="loginEmail" placeholder="Email" style="margin-bottom:0.8rem;">
         <input type="password" id="loginPassword" placeholder="Password" style="margin-bottom:1rem;">
         <button class="btn btn-primary" onclick="adminLogin()"><i class="fas fa-sign-in-alt"></i> Masuk</button>
@@ -741,6 +761,9 @@
           <div class="user-info">
             <i class="fas fa-user-circle"></i>
             <span class="email" id="userEmail">-</span>
+          </div>
+          <div style="margin-top:0.5rem; font-size:0.8rem; color:#4f6f8f;">
+            <i class="fas fa-info-circle"></i> Semua permintaan dari pengguna publik
           </div>
         </div>
         <div>
@@ -861,14 +884,8 @@
     dateInput.value = today;
   }
 
-  // Submit form ke Firebase
+  // Submit form ke Firebase - TANPA LOGIN
   window.submitForm = function() {
-    // Cek apakah user sudah login
-    if (!currentUser) {
-      alert('Anda harus login terlebih dahulu untuk mengirim permintaan. Silakan masuk ke Admin.');
-      return;
-    }
-
     // Validasi
     const nama = document.getElementById('namaPemohon').value.trim();
     const jabatan = document.getElementById('jabatanPemohon').value.trim();
@@ -923,8 +940,7 @@
         shift: document.querySelector('input[name="shiftKerja"]:checked')?.value || ''
       },
       timestamp: firebase.database.ServerValue.TIMESTAMP,
-      createdBy: currentUser.uid,
-      createdByEmail: currentUser.email
+      submittedBy: 'Public User' // Menandai bahwa ini dari publik
     };
 
     // Push ke Firebase
@@ -932,11 +948,36 @@
     ref.push(data).then(() => {
       document.getElementById('successMessage').style.display = 'block';
       // Reset form
-      // resetForm();
+      resetForm();
+      // Scroll ke atas
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }).catch(err => {
       alert('Gagal menyimpan: ' + err.message);
     });
   };
+
+  // Reset form setelah submit
+  function resetForm() {
+    document.getElementById('namaPemohon').value = '';
+    document.getElementById('jabatanPemohon').value = '';
+    document.getElementById('namaDigantikan').value = '';
+    document.getElementById('projectSo').value = '';
+    document.getElementById('posisi').value = '';
+    document.getElementById('deskripsiPekerjaan').value = '';
+    document.getElementById('kualifikasi').value = '';
+    document.getElementById('jumlahOtherInput').value = '';
+    
+    // Reset radio ke default
+    document.querySelector('input[name="perusahaanPemohon"][value="PT. Genetek Intratama"]').checked = true;
+    document.querySelector('input[name="perusahaanBaru"][value="PT. Genetek Intratama"]').checked = true;
+    document.querySelector('input[name="jenisPermintaan"][value="Penambahan Tenaga Kerja"]').checked = true;
+    document.querySelector('input[name="statusKepeg"][value="Karyawan Tetap"]').checked = true;
+    document.querySelector('input[name="jumlahKebutuhan"][value="1"]').checked = true;
+    document.querySelector('input[name="shiftKerja"][value="Office/Shift C (Senin-Jumat, 08:00-17:00) -- (Sabtu-Minggu, Day Off)"]').checked = true;
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('tanggalMulai').value = today;
+  }
 
   // ============================================================
   // AUTH FUNCTIONS
@@ -1010,6 +1051,7 @@
         const req = val.permintaan || {};
         const k = val.kebutuhan || {};
         const date = val.timestamp ? new Date(val.timestamp).toLocaleString('id-ID') : '-';
+        const submittedBy = val.submittedBy || 'Public User';
 
         html += `
           <div class="request-item" data-key="${key}">
@@ -1020,7 +1062,9 @@
             <div class="row"><span class="label">Jumlah</span><span class="value">${k.jumlah || '-'} orang</span></div>
             <div class="row"><span class="label">Mulai</span><span class="value">${k.tanggalMulai || '-'} · ${k.shift || '-'}</span></div>
             <div class="row"><span class="label">Project/SO</span><span class="value">${req.projectSo || '-'}</span></div>
-            <div class="row" style="margin-top:0.3rem; font-size:0.8rem; color:#5f7d9c;"><span class="label">Dikirim</span><span class="value">${date}</span></div>
+            <div class="row" style="margin-top:0.3rem; font-size:0.8rem; color:#5f7d9c;">
+              <span class="label">Dikirim</span><span class="value">${date} <span class="badge">${submittedBy}</span></span>
+            </div>
             <div class="actions">
               <button class="btn btn-warning btn-sm" onclick="openEditModal('${key}')"><i class="fas fa-edit"></i> Edit</button>
               <button class="btn btn-danger btn-sm" onclick="deleteRequest('${key}')"><i class="fas fa-trash"></i> Hapus</button>
@@ -1233,7 +1277,6 @@
   // ============================================================
   // AUTO LOGIN CHECK
   // ============================================================
-  // Cek apakah sudah login dari session sebelumnya
   auth.onAuthStateChanged(user => {
     if (user) {
       document.getElementById('userEmail').textContent = user.email;
