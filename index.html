@@ -518,8 +518,8 @@ body{background:var(--bg)}
 .k-co{grid-column:span 2}
 .k-chart .tile-h,.k-co .tile-h{margin-bottom:10px}
 .legend{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)}
-.lg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:6px}
-.lg.ok{background:var(--s-ok)}.lg.no{background:var(--s-no)}.lg.wait{background:#c9c7bf}
+.lgd{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:6px}
+.lgd.ok{background:var(--s-ok)}.lgd.no{background:var(--s-no)}.lgd.wait{background:#c9c7bf}
 .trend{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end;height:130px}
 .tb{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
 .tb .stack{width:100%;max-width:46px;height:var(--h);min-height:3px;display:flex;flex-direction:column-reverse;border-radius:8px;overflow:hidden;background:var(--surface-2);animation:grow .9s var(--ease) both}
@@ -713,6 +713,14 @@ body{background:var(--bg)}
   .k-mini b{font-size:1.5rem}
   .kpi-bento .mono{font-size:.62rem}
 }
+
+.perm-help{max-width:620px;margin:0 auto;background:#fff;padding:36px 24px}
+.perm-help i{color:var(--accent);opacity:1}
+.perm-help h3{color:var(--text);font-size:1.15rem;margin-bottom:8px}
+.perm-help p{max-width:520px;margin:0 auto 16px;line-height:1.6}
+.perm-help code{font-family:var(--mono);background:var(--surface-2);padding:2px 6px;border-radius:6px;color:var(--text)}
+.perm-uid{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.perm-uid code{font-size:.9rem;padding:8px 12px;border:1px dashed var(--border);word-break:break-all}
 
   </style>
 </head>
@@ -918,7 +926,7 @@ body{background:var(--bg)}
           </div>
           <div class="tile k-mini"><span class="mono">RATA-RATA RESPONS</span><b data-k="resp">–</b><small>dari kirim → keputusan</small></div>
           <div class="tile k-mini t-accent"><span class="mono">PERLU PERHATIAN</span><b data-k="due">0</b><small>mulai ≤ 14 hari, belum diputuskan</small></div>
-          <div class="tile k-chart"><div class="tile-h"><h3>Tren 6 bulan</h3><span class="legend"><i class="lg ok"></i>Disetujui <i class="lg no"></i>Ditolak <i class="lg wait"></i>Lainnya</span></div><div class="trend" data-trend></div></div>
+          <div class="tile k-chart"><div class="tile-h"><h3>Tren 6 bulan</h3><span class="legend"><i class="lgd ok"></i>Disetujui <i class="lgd no"></i>Ditolak <i class="lgd wait"></i>Lainnya</span></div><div class="trend" data-trend></div></div>
           <div class="tile k-co"><div class="tile-h"><h3>Per perusahaan TK baru</h3></div><div class="co-bars" data-co-bars></div></div>
         </div>
 
@@ -1933,6 +1941,19 @@ window.THEME = (function () {
       renderList();
       call('onData', allData, ctx);
     }, err => {
+      const u = auth.currentUser || {};
+      if (/permission/i.test(err.message || err.code || '')) {
+        $('#requestList').innerHTML = `<div class="empty perm-help">
+          <i class="fa-solid fa-user-lock"></i>
+          <h3>Akun ini belum terdaftar sebagai admin HR</h3>
+          <p>Login sebagai <b>${esc(u.email || '-')}</b>. Daftarkan UID di bawah ini di Firebase Console → Realtime Database → Data → <code>hccsAdmins</code>, isi dengan <code>true</code>, lalu klik <b>Coba lagi</b>.</p>
+          <div class="perm-uid"><code id="permUid">${esc(u.uid || '-')}</code><button type="button" class="btn btn-ghost btn-sm" id="btnCopyUid"><i class="fa-regular fa-copy"></i> Salin UID</button></div>
+          <button type="button" class="btn btn-primary btn-sm" id="btnRetryPerm"><i class="fa-solid fa-rotate"></i> Coba lagi</button>
+        </div>`;
+        on('#btnCopyUid', 'click', () => { const t = u.uid || ''; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('UID disalin.', 'success'), () => toast('UID: ' + t, 'info', 8000)); });
+        on('#btnRetryPerm', 'click', () => subscribe());
+        return;
+      }
       $('#requestList').innerHTML = `<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Gagal memuat data: ${esc(err.message)}</p></div>`;
     });
   }
