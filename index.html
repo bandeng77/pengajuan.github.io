@@ -722,6 +722,12 @@ body{background:var(--bg)}
 .perm-uid{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .perm-uid code{font-size:.9rem;padding:8px 12px;border:1px dashed var(--border);word-break:break-all}
 
+.mine-item{display:flex;gap:6px;align-items:stretch;margin-bottom:6px;transition:opacity .35s,transform .35s var(--ease),max-height .35s;max-height:90px}
+.mine-item .mine-row{margin:0;flex:1}
+.mine-x{width:40px;flex:none;border:0;border-radius:12px;background:var(--surface-2);color:var(--muted);transition:all .2s}
+.mine-x:hover{background:var(--s-no-bg);color:var(--s-no)}
+.mine-item.gone{opacity:0;transform:translateX(16px);max-height:0;margin:0;overflow:hidden}
+
   </style>
 </head>
 <body class="d-studio">
@@ -1129,21 +1135,42 @@ window.THEME = (function () {
     box.innerHTML = '<div class="skeleton"></div>';
     try {
       const r = await H.lookup(code);
-      box.innerHTML = r ? trackCard(r) : `<div class="tile in tr-empty"><i class="fa-regular fa-face-frown"></i><p>Kode <b>${H.esc(code)}</b> tidak ditemukan. Periksa kembali kode tiket Anda.</p></div>`;
+      if (!r && H.myTickets().some(t => t.key === code)) { H.forgetTicket(code); renderMine(); }
+      box.innerHTML = r ? trackCard(r) : `<div class="tile in tr-empty"><i class="fa-regular fa-face-frown"></i><p>Kode <b>${H.esc(code)}</b> tidak ditemukan. Permintaan mungkin sudah dihapus oleh admin, atau kode yang dimasukkan salah.</p></div>`;
     } catch (e) {
       const denied = /permission|denied/i.test(e.message || '');
       box.innerHTML = `<div class="tile in tr-empty"><i class="fa-solid fa-lock"></i><p>${denied ? 'Pelacakan belum diaktifkan oleh admin (aturan database belum mengizinkan baca per tiket).' : 'Gagal memuat: ' + H.esc(e.message)}</p></div>`;
     }
   }
+  const EMPTY_MINE = '<p class="muted-s">Belum ada permintaan yang dikirim dari perangkat ini.</p>';
   async function renderMine() {
     const box = $('[data-my-list]'); if (!box) return;
     const list = H.myTickets();
-    if (!list.length) { box.innerHTML = '<p class="muted-s">Belum ada permintaan yang dikirim dari perangkat ini.</p>'; return; }
-    box.innerHTML = list.map(t => `<button type="button" class="mine-row" data-track-key="${H.esc(t.key)}"><span><b>${H.esc(t.posisi || '-')}</b><small>${H.esc(new Date(t.at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }))}</small></span><span data-mine-status="${H.esc(t.key)}" class="spill s-wait">…</span></button>`).join('');
-    for (const t of list.slice(0, 8)) {
-      try { const r = await H.lookup(t.key); const el = $(`[data-mine-status="${CSS.escape(t.key)}"]`); if (el) el.outerHTML = r ? pill(H.statusOf(r)) : '<span class="spill">Tidak ada</span>'; }
-      catch (e) { const el = $(`[data-mine-status="${CSS.escape(t.key)}"]`); if (el) el.outerHTML = '<span class="spill">–</span>'; }
+    if (!list.length) { box.innerHTML = EMPTY_MINE; return; }
+    box.innerHTML = list.map(t => `<div class="mine-item" data-mine="${H.esc(t.key)}">
+      <button type="button" class="mine-row" data-track-key="${H.esc(t.key)}"><span><b>${H.esc(t.posisi || '-')}</b><small>${H.esc(new Date(t.at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }))}</small></span><span data-mine-status class="spill s-wait">…</span></button>
+      <button type="button" class="mine-x" data-forget="${H.esc(t.key)}" title="Hapus dari daftar perangkat ini" aria-label="Hapus dari daftar"><i class="fa-solid fa-xmark"></i></button>
+    </div>`).join('');
+    let removed = 0;
+    for (const t of list) {
+      const item = $(`[data-mine="${CSS.escape(t.key)}"]`); if (!item) continue;
+      const el = item.querySelector('[data-mine-status]');
+      try {
+        const r = await H.lookup(t.key);
+        if (r) { el.outerHTML = pill(H.statusOf(r)); continue; }
+        // sudah dihapus admin di database → buang juga pintasannya dari perangkat ini
+        H.forgetTicket(t.key); removed++;
+        el.outerHTML = '<span class="spill s-no">Dihapus</span>';
+        item.classList.add('gone');
+        setTimeout(() => { item.remove(); if (!$('[data-mine]', box)) box.innerHTML = EMPTY_MINE; }, 1600);
+      } catch (e) { if (el) el.outerHTML = '<span class="spill">–</span>'; }
     }
+    if (removed) H.toast(`${removed} permintaan sudah tidak ada di database dan dihapus dari daftar perangkat ini.`, 'info', 4500);
+  }
+  function forgetOne(key) {
+    H.forgetTicket(key);
+    const item = $(`[data-mine="${CSS.escape(key)}"]`);
+    if (item) { item.classList.add('gone'); setTimeout(() => { item.remove(); const box = $('[data-my-list]'); if (box && !$('[data-mine]', box)) box.innerHTML = EMPTY_MINE; }, 350); }
   }
 
   // ---------- ubah status (modal) ----------
@@ -1403,6 +1430,7 @@ window.THEME = (function () {
       const cp = t.closest('[data-copy]'); if (cp) { copy(cp.dataset.copy); return; }
       if (t.closest('[data-copy-code]')) { copy($('[data-ticket-code]').textContent); return; }
       if (t.closest('[data-track-mine]')) { H.showView('lacak'); $('#trackCode').value = $('[data-ticket-code]').textContent; track($('#trackCode').value); return; }
+      const fg = t.closest('[data-forget]'); if (fg) { forgetOne(fg.dataset.forget); return; }
       const tk = t.closest('[data-track-key]'); if (tk) { $('#trackCode').value = tk.dataset.trackKey; track(tk.dataset.trackKey); $('#trackResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); return; }
       const qc = t.closest('.qchip'); if (qc) { const n = $('#statusNote'); n.value = qc.textContent; n.closest('.field').classList.remove('invalid'); n.focus(); return; }
       if (t.closest('[data-stop]')) return;
@@ -1820,6 +1848,9 @@ window.THEME = (function () {
       localStorage.setItem('hr_tickets', JSON.stringify(list.slice(0, 20)));
     } catch (e) { /* abaikan */ }
   }
+  function forgetTicket(key) {
+    try { localStorage.setItem('hr_tickets', JSON.stringify(myTickets().filter(t => t.key !== key))); } catch (e) { /* abaikan */ }
+  }
   async function lookup(key) {
     if (!fbReady) throw new Error('Firebase tidak termuat.');
     const snap = await db.ref('permintaan/' + key).once('value');
@@ -2214,7 +2245,7 @@ window.THEME = (function () {
     REPLACE, ADD, COMPANIES, SHIFT_ITEMS, STATUS_ITEMS,
     card: reqCard, detail: detailHTML, meta: metaList, actions: actionsHTML, submitted: submittedHTML,
     find: key => allData.find(x => x.key === key), all: () => allData, filtered, rerender: renderList,
-    STATUS, statusOf, statusInfo, setStatus, addNote, lookup, myTickets, showView, openEdit, confirmDialog, openModal, closeModal, setLoading,
+    STATUS, statusOf, statusInfo, setStatus, addNote, lookup, myTickets, forgetTicket, showView, openEdit, confirmDialog, openModal, closeModal, setLoading,
     user: () => (auth && auth.currentUser) || null,
     step: () => step, total: TOTAL, goStep, next, validateStep
   };
